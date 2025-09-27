@@ -20,10 +20,22 @@ const sendWinner = (id, winner) => {
     socketManager.getIO().to(id).emit('game:winner', winner);
 };
 
+//Added sendScoreUpdate
+const sendScoreUpdate = (roomId, scoresData) => {
+    socketManager.getIO().to(roomId).emit(`game:scores`, scoresData);
+};
+
+//Added broadcastCapture
+const broadcastCapture = (roomId, captureInfo) => {
+    socketManager.getIO().to(roomId).emit('capture:happened', captureInfo);
+};
+
 module.exports = {
     sendToPlayersData,
     sendToPlayersRolledNumber,
     sendToOnePlayerData,
     sendToOnePlayerRooms,
     sendWinner,
+    sendScoreUpdate,
+    broadcastCapture,
 };

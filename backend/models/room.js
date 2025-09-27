@@ -5,6 +5,8 @@ const timeoutManager = require('./timeoutManager.js');
 const PawnSchema = require('./pawn');
 const PlayerSchema = require('./player');
 
+const scoringUtils = require('../utils/scoring'); // Import scoring utilities
+
 const RoomSchema = new mongoose.Schema({
     name: String,
     private: { type: Boolean, default: false },
@@ -15,6 +17,7 @@ const RoomSchema = new mongoose.Schema({
     nextMoveTime: Number,
     rolledNumber: Number,
     players: [PlayerSchema],
+    captureStats: { type: Object, default: {} }, //implemented capture stats
     winner: { type: String, default: null },
     pawns: {
         type: [PawnSchema],
@@ -66,6 +69,41 @@ RoomSchema.methods.movePawn = function (pawn) {
     this.beatPawns(newPositionOfMovedPawn, pawn.color);
 };
 
+//Added movePawnWithSscoring function
+RoomSchema.methods.movePawnWithScoring = function (pawn, diceRoll) {
+    //update pawn score
+    scoringUtils.updatePawnScore(pawn, diceRoll);
+
+    //calculate new position
+    const newPos = pawn.getPositionAfterMove(diceRoll);
+
+    //update pawn position
+    this.changePositionOfPawn(pawn, newPos);
+
+    //Check for captures
+    const pawnsNewPos = this.pawns.filter(p => p.position === newPos && p._id.toString() !== pawn._id.toString());
+
+    pawnsNewPos.forEach(capturedPawn => {
+        if (capturedPawn.color !== pawn.color) {
+            //Handle capture scoring
+            const captureResult = scoringUtils.handleCapture(pawn, capturedPawn);
+
+            //Update capture count
+            scoringUtils.updateCaptureCount(this, pawn.color);
+
+            //Move captured pawn back to base
+            const capturedIndex = this.getPawnIndex(capturedPawn._id);
+            this.pawns[capturedIndex].position = this.pawns[capturedIndex].basePos;
+
+            //Optionally logging capture details
+            console.log(`Capture! ${pawn.color} gained ${captureResult.pointsGained} points`);
+        }
+    });
+
+    //Return all player scores
+    return scoringUtils.getScoresForAllPlayers(this);
+};
+
 RoomSchema.methods.getPawnsThatCanMove = function () {
     const movingPlayer = this.getCurrentlyMovingPlayer();
     const playerPawns = this.getPlayerPawns(movingPlayer.color);
@@ -112,6 +150,40 @@ RoomSchema.methods.getWinner = function () {
         return 'yellow';
     }
     return null;
+};
+
+//Added getWinnerByScore function for score-based winning
+RoomSchema.methods.getWinnerByScore = function () {
+    const scores = scoringUtils.getScoresForAllPlayers(this);
+    const captures = this.captureStats || {};
+
+    let highestScore = -1;
+    let winner = null;
+    let tiedPlayers = [];
+
+    //find the highest score
+    Object.entries(scores).forEach(([color, score]) => {
+        if (score > highestScore) {
+            highestScore = score;
+            winner = color;
+            tiedPlayers = [color];
+        } else if (score === highestScore) {
+            tiedPlayers.push(color);
+        }
+    });
+
+    //If tie, we are going to use capture count as tiebreaker
+    if (tiedPlayers.length > 1) {
+        let maxCaptures = -1;
+        tiedPlayers.forEach(color => {
+            const captureCount = captures[color] || 0;
+            if (captureCount > maxCaptures) {
+                maxCaptures = captureCount;
+                winner = color;
+            }
+        });
+    }
+    return winner;
 };
 
 RoomSchema.methods.isFull = function () {

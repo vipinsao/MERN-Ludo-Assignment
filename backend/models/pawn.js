@@ -6,6 +6,7 @@ const PawnSchema = new Schema({
     color: String,
     basePos: Number,
     position: Number,
+    score: { type: Number, default: 0 }, //Score logic for every pawn at start all pawns have 0
 });
 
 PawnSchema.methods.canMove = function (rolledNumber) {
@@ -63,7 +64,7 @@ PawnSchema.methods.getPositionAfterMove = function (rolledNumber) {
                 return position;
             }
         case 'yellow':
-            if (position + rolledNumber <= 85) {
+            if (position + rolledNumber <= 91) {
                 if (position >= 12 && position <= 15) {
                     return 29;
                 } else if (position <= 67 && position + rolledNumber > 67) {

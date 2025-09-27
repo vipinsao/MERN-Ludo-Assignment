@@ -1,4 +1,4 @@
-const { sendToPlayersRolledNumber, sendWinner } = require('../socket/emits');
+const { sendToPlayersRolledNumber, sendWinner, sendScoreUpdate } = require('../socket/emits');
 
 const rollDice = () => {
     const rolledNumber = Math.ceil(Math.random() * 6);
@@ -17,7 +17,13 @@ const makeRandomMove = async roomId => {
     const pawnsThatCanMove = room.getPawnsThatCanMove();
     if (pawnsThatCanMove.length > 0) {
         const randomPawn = pawnsThatCanMove[Math.floor(Math.random() * pawnsThatCanMove.length)];
-        room.movePawn(randomPawn);
+        // room.movePawn(randomPawn);
+
+        //Scoring logic with movement
+        const updatedScores = room.movePawnWithScoring(randomPawn, room.rolledNumber);
+
+        //Emit scores update after move
+        sendScoreUpdate(room._id.toString(), updatedScores);
     }
     room.changeMovingPlayer();
     const winner = room.getWinner();

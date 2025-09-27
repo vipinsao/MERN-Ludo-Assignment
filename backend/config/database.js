@@ -1,3 +1,4 @@
+require('dotenv').config();
 module.exports = function (mongoose) {
     mongoose.set('useFindAndModify', false);
     mongoose
