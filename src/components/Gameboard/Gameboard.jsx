@@ -8,6 +8,9 @@ import Overlay from '../Overlay/Overlay';
 import styles from './Gameboard.module.css';
 import trophyImage from '../../images/trophy.webp';
 
+import Timer from '../Timer/Timer';
+import Scoreboard from '../Scoreboard/Scoreboard';
+
 const Gameboard = () => {
     const socket = useContext(SocketContext);
     const context = useContext(PlayerDataContext);
@@ -24,6 +27,9 @@ const Gameboard = () => {
 
     const [winner, setWinner] = useState(null);
 
+    //States for scores and capture stats
+    const [scores, setScores] = useState({});
+    const [captureStats, setCaptureStats] = useState({});
     useEffect(() => {
         socket.emit('room:data', context.roomId);
         socket.on('room:data', data => {
@@ -33,23 +39,60 @@ const Gameboard = () => {
             while (data.players.length !== 4) {
                 data.players.push({ name: '...' });
             }
-            // Checks if client is currently moving player by session ID
-            const nowMovingPlayer = data.players.find(player => player.nowMoving === true);
-            if (nowMovingPlayer) {
-                if (nowMovingPlayer._id === context.playerId) {
-                    setNowMoving(true);
-                } else {
-                    setNowMoving(false);
-                }
-                setMovingPlayer(nowMovingPlayer.color);
-            }
-            const currentPlayer = data.players.find(player => player._id === context.playerId);
-            setIsReady(currentPlayer.ready);
-            setRolledNumber(data.rolledNumber);
+
+            //Update pawn and Player state
             setPlayers(data.players);
             setPawns(data.pawns);
+            setRolledNumber(data.rolledNumber);
             setTime(data.nextMoveTime);
             setStarted(data.started);
+
+            //track whoes turn it is
+            const currPlayer = data.players.find(player => player.nowMoving);
+            if (currPlayer) {
+                setNowMoving(currPlayer._id === context.playerId);
+                setMovingPlayer(currPlayer.color);
+            }
+
+            // ready state for current user
+            const me = data.players.find(p => p._id === context.playerId);
+            setIsReady(me?.ready);
+
+            // optionally initialize captureStats
+            if (data.captureStats) {
+                setCaptureStats(data.captureStats);
+            }
+
+            // Checks if client is currently moving player by session ID
+            // const nowMovingPlayer = data.players.find(player => player.nowMoving === true);
+            // if (nowMovingPlayer) {
+            //     if (nowMovingPlayer._id === context.playerId) {
+            //         setNowMoving(true);
+            //     } else {
+            //         setNowMoving(false);
+            //     }
+            //     setMovingPlayer(nowMovingPlayer.color);
+            // }
+            // const currentPlayer = data.players.find(player => player._id === context.playerId);
+            // setIsReady(currentPlayer.ready);
+            // setRolledNumber(data.rolledNumber);
+            // setPlayers(data.players);
+            // setPawns(data.pawns);
+            // setTime(data.nextMoveTime);
+            // setStarted(data.started);
+        });
+
+        //listening for real-time score updates
+        socket.on('game:scores', updatedScores => {
+            setScores(updatedScores);
+        });
+
+        // OPTIONAL: listen for individual capture events
+        socket.on('capture:happened', info => {
+            setCaptureStats(prev => ({
+                ...prev,
+                [info.color]: info.count,
+            }));
         });
 
         socket.on('game:winner', winner => {
@@ -58,13 +101,29 @@ const Gameboard = () => {
         socket.on('redirect', () => {
             window.location.reload();
         });
-
+        return () => {
+            socket.off('room:data');
+            socket.off('game:scores');
+            socket.off('capture:happened');
+            socket.off('game:winner');
+            socket.off('redirect');
+        };
     }, [socket, context.playerId, context.roomId, setRolledNumber]);
 
     return (
         <>
             {pawns.length === 16 ? (
                 <div className='container'>
+                    <div className={styles.sidebar}>
+                        {/* Added Sidebar for timer and scoreboard  */}
+                        <Timer nextMoveTime={time} gameStarted={started} gameEnded={winner != null} />
+                        <Scoreboard
+                            scores={scores}
+                            captures={captureStats}
+                            players={players}
+                            currentTurnPlayer={movingPlayer}
+                        />
+                    </div>
                     <Navbar
                         players={players}
                         started={started}
@@ -86,6 +145,8 @@ const Gameboard = () => {
                         <img src={trophyImage} alt='winner' />
                         <h1>
                             1st: <span style={{ color: winner }}>{winner}</span>
+                            <br />
+                            <span>{scores[winner] || 0} pts</span>
                         </h1>
                         <button onClick={() => socket.emit('player:exit')}>Play again</button>
                     </div>

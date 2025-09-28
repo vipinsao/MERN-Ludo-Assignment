@@ -1,0 +1,20 @@
+.board {
+    background: white;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.colorBox {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    margin-right: 8px;
+}
+.item:last-child {
+    margin-bottom: 0;
+}
