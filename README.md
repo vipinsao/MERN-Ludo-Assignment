@@ -41,10 +41,10 @@ It is a fork of the original MERN Ludo repository, extended with a **real-time s
 ## Screenshots
 
 ### ✅ New UI with Live Scoreboard & Timer
-![New UI](./screenshots/new-ui.png)
+![New UI](./public/new_ui.png)
 
 ### 🎲 Classic Old UI
-![Old UI](./screenshots/old-ui.png)
+![Old UI](./public/old_ui.png)
 
 ---
 
